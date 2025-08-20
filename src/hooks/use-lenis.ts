@@ -56,21 +56,6 @@ export const useLenis = (options: LenisOptions = {}): UseLenisReturn => {
   const rafRef = useRef<number | null>(null)
   const isScrollingRef = useRef<boolean>(false)
 
-  const defaultOptions: LenisOptions = {
-    duration: 1.2,
-    easing: (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t)),
-    direction: 'vertical',
-    gestureDirection: 'vertical',
-    smooth: true,
-    mouseMultiplier: 1,
-    smoothTouch: false,
-    touchMultiplier: 2,
-    infinite: false,
-    normalizeWheel: true,
-    syncTouch: false,
-    ...options
-  }
-
   const raf = useCallback((time: number) => {
     if (lenisRef.current) {
       lenisRef.current.raf(time)
@@ -85,7 +70,33 @@ export const useLenis = (options: LenisOptions = {}): UseLenisReturn => {
       // Dynamic import to avoid SSR issues
       const Lenis = (await import('@studio-freight/lenis')).default
       
-      const lenis = new Lenis(defaultOptions) as LenisInstance
+      // Create options object without functions to avoid serialization issues
+      const lenisOptions = {
+        duration: options.duration || 1.2,
+        direction: options.direction || 'vertical',
+        gestureDirection: options.gestureDirection || 'vertical',
+        smooth: options.smooth !== undefined ? options.smooth : true,
+        mouseMultiplier: options.mouseMultiplier || 1,
+        smoothTouch: options.smoothTouch || false,
+        touchMultiplier: options.touchMultiplier || 2,
+        infinite: options.infinite || false,
+        normalizeWheel: options.normalizeWheel !== undefined ? options.normalizeWheel : true,
+        syncTouch: options.syncTouch || false,
+        wrapper: options.wrapper,
+        content: options.content,
+        wheelEventsTarget: options.wheelEventsTarget,
+        eventsTarget: options.eventsTarget,
+        // Set easing function directly on the instance after creation
+      }
+      
+      const lenis = new Lenis(lenisOptions) as LenisInstance
+
+      // Set custom easing function if provided, otherwise use default
+      if (options.easing) {
+        (lenis as any).options.easing = options.easing
+      } else {
+        (lenis as any).options.easing = (t: number) => Math.min(1, 1.001 - Math.pow(2, -10 * t))
+      }
 
       // Track scrolling state
       lenis.on('scroll', () => {
@@ -104,7 +115,7 @@ export const useLenis = (options: LenisOptions = {}): UseLenisReturn => {
     } catch (error) {
       console.warn('Lenis failed to initialize:', error)
     }
-  }, [defaultOptions, raf])
+  }, [options, raf])
 
   const scrollTo = useCallback((
     target: string | number | HTMLElement,
